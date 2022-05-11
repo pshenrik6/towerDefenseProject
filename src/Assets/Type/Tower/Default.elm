@@ -14,7 +14,7 @@ type alias Properties =
     }
 
 
-init : Assets.Object.Properties
+init : Assets.Object.Properties Properties
 init =
     Assets.Object.init
         { turnSpeed = 2
