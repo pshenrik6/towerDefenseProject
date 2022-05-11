@@ -1,7 +1,7 @@
-module Assets.Object exposing (Properties, init)
+module Assets.Object exposing (Object, init)
 
 
-type alias Properties a =
+type alias Object a =
     { width : Int
     , height : Int
     , xCoord : Int
@@ -11,12 +11,12 @@ type alias Properties a =
     }
 
 
-init : a -> Properties a
-init objectType =
-    { height = 5
-    , width = 5
-    , xCoord = 0
-    , yCoord = 0
-    , image = "Foo"
+init : Int -> Int -> Int -> Int -> String -> a -> Object a
+init height width xCoord yCoord image objectType =
+    { height = height
+    , width = width
+    , xCoord = xCoord
+    , yCoord = yCoord
+    , image = image
     , objectType = objectType
     }
