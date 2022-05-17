@@ -21,7 +21,7 @@ initSmallTower =
         20
         10
         10
-        "Foo"
+        "tower.png"
         { turnSpeed = 5
         , projectile = Assets.Type.Projectile.initBoulder
         , fireRate = 5
@@ -38,7 +38,7 @@ initBigTower =
         50
         10
         10
-        "Foo"
+        "tower.png"
         { turnSpeed = 5
         , projectile = Assets.Type.Projectile.initBoulder
         , fireRate = 5
