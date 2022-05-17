@@ -3,12 +3,13 @@ module Main exposing (main)
 import Assets.Object exposing (Object)
 import Assets.Type.Enemy exposing (Enemy)
 import Assets.Type.Projectile exposing (Projectile)
-import Assets.Type.Tower exposing (Tower)
+import Assets.Type.Tower exposing (Tower, initBigTower)
 import Browser
-import Browser.Events
 import General exposing (Area(..), Point(..))
-import Html exposing (Html, div)
-import Html.Attributes exposing (style)
+import Html exposing (Html, button, div, img, span, text)
+import Html.Attributes exposing (src, style)
+import Html.Events exposing (onClick)
+import Json.Decode as Decode exposing (Decoder)
 import Level exposing (Level(..), init)
 import Svg exposing (Svg, rect, svg)
 import Svg.Attributes exposing (fill, height, opacity, speed, stroke, viewBox, width, x, y)
@@ -17,6 +18,8 @@ import Svg.Attributes exposing (fill, height, opacity, speed, stroke, viewBox, w
 type alias Model =
     { field : Area
     , status : Status
+    , towerList : List (Object (Tower (Object Projectile)))
+    , selectedTower : Object (Tower (Object Projectile))
     }
 
 
@@ -29,6 +32,7 @@ type Status
 
 type Msg
     = Pause
+    | SelectItem (Object (Tower (Object Projectile)))
 
 
 type Attacker
@@ -57,7 +61,9 @@ initField =
 init : Model
 init =
     { field = initField
-    , status = PauseGame
+    , status = Running
+    , towerList = initTowerList
+    , selectedTower = Assets.Type.Tower.initBigTower
     }
 
 
@@ -156,6 +162,13 @@ update msg model =
                 Just Pause ->
                     ( model, Cmd.none )
 
+                Just (SelectItem tower) ->
+                    let
+                        _ =
+                            Debug.log "foo" tower.objectType.range
+                    in
+                    ( { model | selectedTower = tower }, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -163,12 +176,40 @@ update msg model =
             ( model, Cmd.none )
 
 
+previewTowerList : List (Object (Tower (Object Projectile))) -> List (Html (Maybe Msg))
+previewTowerList list =
+    case list of
+        [] ->
+            [ span [] [ text ">" ] ]
+
+        tower :: xs ->
+            span [] [ previewTowerListItem tower ]
+                :: previewTowerList xs
+
+
+previewTowerListItem : Object (Tower (Object Projectile)) -> Html (Maybe Msg)
+previewTowerListItem tower =
+    span []
+        [ span [] [ img [ src ("img/" ++ tower.image), Html.Attributes.width 40, Html.Attributes.height 40 ] [] ]
+        , span [] [ text ("Name: " ++ tower.objectType.name) ]
+        , span [] [ text ("Price: " ++ String.fromInt tower.objectType.price) ]
+        , span [] [ text ("FireRate: " ++ String.fromInt tower.objectType.fireRate) ]
+        , span [] [ text ("Range: " ++ String.fromInt tower.objectType.range) ]
+        , button [ onClick (Just (SelectItem tower)) ] [ text "Select" ]
+        ]
+
+
+drawSelectionBoard : Model -> Html (Maybe Msg)
+drawSelectionBoard model =
+    div [] (span [] [ text "<" ] :: previewTowerList model.towerList)
+
+
 view : Model -> Html (Maybe Msg)
 view model =
     case model.field of
         Rect field ->
-            div []
-                [ div [ style "text-align" "center" ]
+            div [ style "text-align" "center" ]
+                [ div []
                     [ svg
                         [ width (String.fromInt field.width)
                         , height (String.fromInt field.height)
@@ -180,6 +221,7 @@ view model =
                             :: board oneFildTest Level.init
                         )
                     ]
+                , drawSelectionBoard model
                 ]
 
 
