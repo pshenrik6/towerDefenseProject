@@ -12,8 +12,13 @@ import Html exposing (Html, button, div, img, span, text)
 import Html.Attributes exposing (src, style)
 import Html.Events exposing (onClick)
 import Level exposing (Level(..), init)
+import List exposing (drop, take)
+import List.Extra exposing (getAt)
+import Random
 import Svg exposing (Svg, rect, svg)
-import Svg.Attributes exposing (fill, height, opacity, speed, stroke, viewBox, width, x, y)
+import Svg.Attributes exposing (direction, fill, height, opacity, speed, stroke, viewBox, width, x, y)
+import Time
+import Tuple exposing (first, second)
 
 
 type alias Model =
@@ -23,7 +28,7 @@ type alias Model =
     , enemyList : List (Object Enemy)
     , selectedTower : Object (Tower (Object Projectile))
     , attacker : Attacker
-    , levelPaths : List Point
+    , level : Level
     }
 
 
@@ -41,47 +46,35 @@ type Msg
 
 
 type Attacker
-    = Attacker { origin : Point, width : Int, height : Int, speed : Int, name : String }
+    = Attacker { origin : Point, width : Int, height : Int, speed : Int, name : String, actuelPosition : Point, oldPosition : Point }
 
 
 attacker : Attacker
 attacker =
-    Attacker { origin = Point 120 60, width = 20, height = 20, speed = 1, name = "Standard Enemy" }
+    Attacker { origin = Point 50 50, width = 20, height = 20, speed = 1, name = "Standard Enemy", actuelPosition = Point 0 1, oldPosition = Point -1 -1 }
 
 
+type Direction
+    = Left
+    | Up
+    | Right
+    | Down
 
--- attacker (120,60)
--- Pathlist
--- [Point 120 0,Point 120 60,Point 180 60,Point 180 120,Point 180 180,Point 240 180,Point 300 180]
 
+moveAttackerPoint : Direction -> Point -> Point
+moveAttackerPoint direction (Point x y) =
+    case direction of
+        Left ->
+            Point (x - 20) y
 
-nextMove : Model -> List Point -> ( Model, Cmd (Maybe Msg) )
-nextMove model list =
-    case model.attacker of
-        Attacker enemy ->
-            case enemy.origin of
-                Point xEnemy yEnemy ->
-                    case list of
-                        x :: _ ->
-                            case x of
-                                Point xPath yPath ->
-                                    if xEnemy == xPath && yEnemy > yPath then
-                                        ( { model | attacker = Attacker { origin = Point xEnemy (yEnemy - enemy.speed), width = enemy.width, height = enemy.height, speed = enemy.speed, name = enemy.name } }, Cmd.none )
+        Up ->
+            Point x (y - 20)
 
-                                    else if xEnemy == xPath && yEnemy < yPath then
-                                        ( { model | attacker = Attacker { origin = Point xEnemy (yEnemy + enemy.speed), width = enemy.width, height = enemy.height, speed = enemy.speed, name = enemy.name } }, Cmd.none )
+        Right ->
+            Point (x + 20) y
 
-                                    else if yEnemy == yPath && xEnemy > xPath then
-                                        ( { model | attacker = Attacker { origin = Point (xEnemy - enemy.speed) yEnemy, width = enemy.width, height = enemy.height, speed = enemy.speed, name = enemy.name } }, Cmd.none )
-
-                                    else if yEnemy == yPath && xEnemy < xPath then
-                                        ( { model | attacker = Attacker { origin = Point (xEnemy + enemy.speed) yEnemy, width = enemy.width, height = enemy.height, speed = enemy.speed, name = enemy.name } }, Cmd.none )
-
-                                    else
-                                        ( { model | attacker = Attacker { origin = Point xEnemy yEnemy, width = enemy.width, height = enemy.height, speed = enemy.speed, name = enemy.name } }, Cmd.none )
-
-                        [] ->
-                            ( { model | attacker = Attacker { origin = Point xEnemy yEnemy, width = enemy.width, height = enemy.height, speed = enemy.speed, name = enemy.name } }, Cmd.none )
+        Down ->
+            Point x (y + 20)
 
 
 initField : Area
@@ -97,7 +90,7 @@ init =
     , enemyList = initEnemyList
     , selectedTower = Assets.Type.Tower.initBigTower
     , attacker = attacker
-    , levelPaths = pathsList oneFildTest Level.init
+    , level = Level.init
     }
 
 
@@ -136,57 +129,6 @@ drawObject number (Point xOrigin yOrigin) objectWidth objectheight =
         []
 
 
-board : OneField -> Level -> List (Svg (Maybe Msg))
-board (RectField field) (LevelGame level) =
-    case level.grid of
-        h :: hs ->
-            case field.origin of
-                Point xOrigin yOrigin ->
-                    let
-                        boardHelp (RectField sfield) listh =
-                            case listh of
-                                x :: xs ->
-                                    case sfield.origin of
-                                        Point xOrigins yOrigins ->
-                                            drawObject x sfield.origin sfield.width sfield.height
-                                                :: boardHelp (RectField { origin = Point (xOrigins + field.width) yOrigins, height = field.height, width = field.width }) xs
-
-                                [] ->
-                                    board (RectField { origin = Point xOrigin (yOrigin + field.height), height = field.height, width = field.width }) (LevelGame { grid = hs })
-                    in
-                    boardHelp (RectField field) h
-
-        [] ->
-            []
-
-
-pathsList : OneField -> Level -> List Point
-pathsList (RectField field) (LevelGame level) =
-    case level.grid of
-        h :: hs ->
-            case field.origin of
-                Point xOrigin yOrigin ->
-                    let
-                        boardHelp (RectField sfield) listh =
-                            case listh of
-                                x :: xs ->
-                                    case sfield.origin of
-                                        Point xOrigins yOrigins ->
-                                            if x == 1 then
-                                                Point (xOrigins + field.width) yOrigins :: boardHelp (RectField { origin = Point (xOrigins + field.width) yOrigins, height = field.height, width = field.width }) xs
-
-                                            else
-                                                boardHelp (RectField { origin = Point (xOrigins + field.width) yOrigins, height = field.height, width = field.width }) xs
-
-                                [] ->
-                                    pathsList (RectField { origin = Point xOrigin (yOrigin + field.height), height = field.height, width = field.width }) (LevelGame { grid = hs })
-                    in
-                    boardHelp (RectField field) h
-
-        [] ->
-            []
-
-
 toKey : String -> Maybe Msg
 toKey string =
     Nothing
@@ -208,26 +150,16 @@ update msg model =
                     ( { model | selectedTower = tower }, Cmd.none )
 
                 Just MoveAttacker ->
-                    -- let
-                    --     _ =
-                    --         Debug.log "pathsList" (pathsList oneFildTest Level.init)
-                    -- in
-                    case model.attacker of
-                        Attacker enemy ->
-                            case enemy.origin of
-                                Point xEnemy yEnemy ->
-                                    case model.levelPaths of
-                                        x :: xs ->
-                                            case x of
-                                                Point xPath yPath ->
-                                                    if xEnemy == xPath && yEnemy == yPath then
-                                                        nextMove { model | levelPaths = xs } model.levelPaths
+                    case Level.init of
+                        LevelGame levelUpdateInit ->
+                            let
+                                _ =
+                                    Debug.log "get at" (maybeToElement2 (getAt 0 levelUpdateInit.grid))
 
-                                                    else
-                                                        nextMove model model.levelPaths
-
-                                        [] ->
-                                            ( { model | attacker = Attacker { origin = Point xEnemy yEnemy, width = 20, height = 20, speed = 1, name = "Standard Enemy" } }, Cmd.none )
+                                --  _ =
+                                --      Debug.log "pathsList" (test Level.init (Point 0 1 ) (Point 0 0 ))
+                            in
+                            testMove model
 
                 _ ->
                     ( model, Cmd.none )
@@ -283,10 +215,12 @@ view model =
                                         , fill "#ccf"
                                         , viewBox ("0 0 " ++ String.fromInt field.width ++ String.fromInt field.height)
                                         ]
-                                        (drawObject 3 a.origin a.width a.height
-                                            :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
-                                            :: board oneFildTest Level.init
-                                        )
+                                        [ drawObject 4 a.origin a.width a.height ]
+
+                                    -- (drawObject 3 a.origin a.width a.height
+                                    --     :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
+                                    --     :: board oneFildTest Level.init
+                                    -- )
                                     ]
                                 , drawSelectionBoard model
                                 ]
@@ -305,29 +239,100 @@ main =
 subscriptions : Model -> Sub (Maybe Msg)
 subscriptions _ =
     Sub.batch
-        [ onAnimationFrame (\_ -> Just MoveAttacker)
+        [ Time.every 1000 (\_ -> Just MoveAttacker)
         ]
 
 
+testMove : Model -> ( Model, Cmd (Maybe Msg) )
+testMove model =
+    case model.attacker of
+        Attacker a ->
+            case a.actuelPosition of
+                Point xActual yActual ->
+                    case a.oldPosition of
+                        Point xOld yOld ->
+                            case Level.init of
+                                LevelGame levelInit ->
+                                    case LevelGame { grid = drop xActual levelInit.grid } of
+                                        LevelGame levelUpdate ->
+                                            case levelUpdate.grid of
+                                                [] ->
+                                                    ( model, Cmd.none )
 
--- point : Point
--- point =
---     Point 20 20
--- moveAttacker : Model -> ( Model, Cmd (Maybe Msg) )
--- moveAttacker model =
---     ( { model | attacker = moveNextStep model.attacker point }, Cmd.none )
--- moveAttacker : Model -> ( Model, Cmd (Maybe Msg) )
--- moveAttacker model = case model.attacker of Attacker a -> case a.origin of Point x y ->  ({ model | attacker =  Attacker { origin = Point (x+1) (y+1), width = 20, height = 20, speed = 1, name = "Standard Enemy" }},Cmd.none)
--- moveNextStep : Attacker -> Point -> Attacker
--- moveNextStep (Attacker enemy) (Point x y) =
---     case enemy.origin of
---         Point xEnemy yEnemy ->
---             if xEnemy == x then
---                 if y > yEnemy then
---                     Attacker { origin = Point xEnemy (yEnemy - enemy.speed), width = 20, height = 20, speed = 1, name = "Standard Enemy" }
---                 else
---                     Attacker { origin = Point xEnemy (yEnemy - enemy.speed), width = 20, height = 20, speed = 1, name = "Standard Enemy" }
---             else if yEnemy > y then
---                 Attacker { origin = Point (xEnemy + enemy.speed) yEnemy, width = 20, height = 20, speed = 1, name = "Standard Enemy" }
+                                                ( _, row ) :: is ->
+                                                    let
+                                                        right =
+                                                            maybeToElement (getAt (yActual + 1) row)
+
+                                                        left =
+                                                            maybeToElement (getAt (yActual - 1) row)
+
+                                                        up =
+                                                            maybeToElement (getAt yActual (second (maybeToElement2 (getAt (xActual - 1) levelInit.grid))))
+                                                    in
+                                                    if second right == 1 && first right /= yOld then
+                                                        ( { model | attacker = Attacker { origin = moveAttackerPoint Right a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point xActual (yActual + 1), oldPosition = Point xActual yActual }, level = LevelGame levelUpdate }, Cmd.none )
+
+                                                    else if second left == 1 && first left /= yOld then
+                                                        ( { model | attacker = Attacker { origin = moveAttackerPoint Left a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point xActual (yActual - 1), oldPosition = Point xActual yActual }, level = LevelGame levelUpdate }, Cmd.none )
+
+                                                    else if second up == 1 && first (maybeToElement2 (getAt (xActual - 1) levelInit.grid)) /= xOld then
+                                                        ( { model | attacker = Attacker { origin = moveAttackerPoint Up a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point (xActual - 1) yActual, oldPosition = Point xActual yActual }, level = LevelGame { grid = drop xOld levelInit.grid } }, Cmd.none )
+
+                                                    else
+                                                        ( { model | attacker = Attacker { origin = moveAttackerPoint Down a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point (xActual + 1) yActual, oldPosition = Point xActual yActual }, level = LevelGame { grid = drop (xActual + 1) levelInit.grid } }, Cmd.none )
+
+
+maybeToElement : Maybe ( Int, Int ) -> ( Int, Int )
+maybeToElement m =
+    case m of
+        Just a ->
+            a
+
+        Nothing ->
+            ( 0, 0 )
+
+
+maybeToElement2 : Maybe ( Int, List ( Int, Int ) ) -> ( Int, List ( Int, Int ) )
+maybeToElement2 m =
+    case m of
+        Just a ->
+            a
+
+        Nothing ->
+            ( 0, [] )
+
+
+
+-- Point 0 1
+--  LevelGame
+--         { grid =
+--             [ ( 0, [ ( 0, 0 ), ( 1, 1 ), ( 2, 0 ), ( 3, 0 ), ( 4, 0 ) ] )
+--             , ( 1, [ ( 0, 1 ), ( 1, 1 ), ( 2, 1 ), ( 3, 0 ), ( 4, 0 ) ] )
+--             , ( 2, [ ( 0, 0 ), ( 1, 0 ), ( 2, 1 ), ( 3, 0 ), ( 4, 0 ) ] )
+--             , ( 3, [ ( 0, 0 ), ( 1, 0 ), ( 2, 1 ), ( 3, 1 ), ( 4, 1 ) ] )
+--             , ( 4, [ ( 0, 0 ), ( 1, 0 ), ( 2, 0 ), ( 3, 0 ), ( 4, 0 ) ] )
+--             ]
+--         }
+-- test : Level -> PointTest -> PointTest -> List PointTest
+-- test (LevelGame levelUpdate) (PointTest xActual yActual zd) (PointTest xOld yOld zOld) =
+--     case levelUpdate.grid of
+--         [] ->
+--             []
+--         ( _, row ) :: is ->
+--             let
+--                 right =
+--                     maybeToElement (getAt (yActual + 1) row)
+--                 left =
+--                     maybeToElement (getAt (yActual - 1) row)
+--                 -- up =
+--                 --     maybeToElement (getAt yActual (second (maybeToElement2 (getAt (xActual-1 ) levelUpdate.grid))))
+--             in
+--             if second right == 1 && first right /= yOld then
+--                 PointTest xActual yActual zd :: test (LevelGame levelUpdate) (PointTest xActual (yActual + 1) zd) (PointTest xActual yActual zd)
+--             else if second left == 1 && first left /= yOld then
+--                 PointTest xActual yActual zd :: test (LevelGame levelUpdate) (PointTest xActual (yActual - 1) zd) (PointTest xActual yActual zd)
+--                 -- else if second up == 1 && first up /= xOld then
+--                 --     PointTest xActual yActual zd :: test (LevelGame { grid = drop xOld levelUpdate.grid }) (PointTest (xActual - 1) yActual  zd) (PointTest xActual yActual zd)
 --             else
---                 Attacker { origin = Point (xEnemy - enemy.speed) 20, width = 20, height = 20, speed = 1, name = "Standard Enemy" }
+--                 PointTest xActual yActual zd :: test (LevelGame { grid = is }) (PointTest (xActual + 1) yActual zd) (PointTest xActual yActual zd)
