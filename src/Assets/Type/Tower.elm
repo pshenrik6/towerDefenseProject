@@ -11,6 +11,7 @@ type alias Tower a =
     , name : String
     , range : Int
     , price : Int
+    , level : Int
     }
 
 
@@ -28,6 +29,7 @@ initSmallTower =
         , range = 80
         , name = "Klein"
         , price = 10
+        , level = 1
         }
 
 
@@ -45,4 +47,5 @@ initBigTower =
         , range = 80
         , name = "Gross"
         , price = 10
+        , level = 1
         }
