@@ -3,7 +3,7 @@ module Main exposing (main)
 import Assets.Object exposing (Object)
 import Assets.Type.Enemy exposing (Enemy, initWarrior)
 import Assets.Type.Projectile exposing (Projectile)
-import Assets.Type.Tower exposing (Tower)
+import Assets.Type.Tower exposing (Tower, initBigTower)
 import Browser
 import Browser.Events exposing (onAnimationFrame)
 import Debug exposing (log)
@@ -11,12 +11,13 @@ import General exposing (Area(..), Direction(..), OneField(..), Point(..), oneFi
 import Html exposing (Html, button, div, img, span, table, td, text, tr)
 import Html.Attributes exposing (src, style)
 import Html.Events exposing (onClick)
-import Level exposing (Level(..), init)
+import Level exposing (Level, init)
 import List exposing (drop, take)
 import List.Extra exposing (getAt)
 import Random
 import Svg exposing (Svg, rect, svg)
 import Svg.Attributes exposing (direction, fill, height, opacity, speed, stroke, viewBox, width, x, y)
+import Svg.Events exposing (onClick)
 import Time
 import Tuple exposing (first, second)
 
@@ -28,9 +29,9 @@ type alias Model =
     , enemyList : List (Object Enemy)
     , selectedTower : Object (Tower (Object Projectile))
     , selectedField : ( Int, Int )
-    , attacker : Attacker
     , level : Level
     , enemy : Object Enemy
+    , enemies : List (Object Enemy)
     }
 
 
@@ -52,9 +53,9 @@ type Attacker
     = Attacker { origin : Point, width : Int, height : Int, speed : Int, name : String, actuelPosition : Point, oldPosition : Point }
 
 
-attacker : Attacker
-attacker =
-    Attacker { origin = Point 50 50, width = 20, height = 20, speed = 1, name = "Standard Enemy", actuelPosition = Point 0 1, oldPosition = Point -1 -1 }
+fieldSize : Int
+fieldSize =
+    60
 
 
 moveAttackerPoint : Direction -> Point -> Point
@@ -86,9 +87,9 @@ init =
     , enemyList = initEnemyList
     , selectedTower = Assets.Type.Tower.initBigTower
     , selectedField = ( 0, 0 )
-    , attacker = attacker
     , level = Level.init
-    , enemy = initWarrior
+    , enemy = initWarrior Down
+    , enemies = [ initWarrior Down ]
     }
 
 
@@ -99,7 +100,7 @@ initTowerList =
 
 initEnemyList : List (Object Enemy)
 initEnemyList =
-    [ Assets.Type.Enemy.initWarrior ]
+    [ Assets.Type.Enemy.initWarrior Down ]
 
 
 drawObject : Int -> Point -> Int -> Int -> Svg (Maybe Msg)
@@ -126,7 +127,7 @@ drawObject number (Point xOrigin yOrigin) objectWidth objectheight =
                 number
             )
         , opacity "50%"
-        , SvgE.onClick (Just (SelectField number (xOrigin - objectWidth) (yOrigin - objectheight)))
+        , Svg.Events.onClick (Just (SelectField number (xOrigin - objectWidth) (yOrigin - objectheight)))
         ]
         []
 
@@ -181,25 +182,35 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just (SelectItem tower) ->
+                    let
+                        _ =
+                            Debug.log "foo" tower.objectType.range
+                    in
                     ( { model | selectedTower = tower }, Cmd.none )
 
                 Just (SelectField typ x y) ->
                     ( setSelectedField model typ x y, Cmd.none )
 
                 Just MoveAttacker ->
-                    case Level.init of
-                        LevelGame levelUpdateInit ->
+                    case model.level of
+                        levelUpdateInit ->
                             let
                                 _ =
                                     Debug.log "get at" (maybeToElement2 (getAt 0 levelUpdateInit.grid))
+
                                 _ =
-                                    Debug.log "enemy" (model.enemy.yCoord)  
+                                    case model.enemies of
+                                        [] ->
+                                            0
+
+                                        enmy :: _ ->
+                                            Debug.log "enemy" enmy.xCoord
 
                                 --  _ =
                                 --      Debug.log "pathsList" (test Level.init (Point 0 1 ) (Point 0 0 ))
                             in
                             --testMove model
-                            moveEnemy model
+                            ( { model | enemies = moveEnemies model.enemies }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -234,7 +245,7 @@ previewTowerListItemDetails tower =
             , tr [] [ td [] [ span [] [ text ("Price: " ++ String.fromInt tower.objectType.price) ] ] ]
             , tr [] [ td [] [ span [] [ text ("FireRate: " ++ String.fromInt tower.objectType.fireRate) ] ] ]
             , tr [] [ td [] [ span [] [ text ("Range: " ++ String.fromInt tower.objectType.range) ] ] ]
-            , tr [] [ td [] [ button [ onClick (Just (SelectItem tower)) ] [ text "Add" ] ] ]
+            , tr [] [ td [] [ button [ Html.Events.onClick (Just (SelectItem tower)) ] [ text "Add" ] ] ]
             ]
         ]
 
@@ -258,49 +269,52 @@ drawSelectionDetailBox model =
 
 view : Model -> Html (Maybe Msg)
 view model =
-    case model.attacker of
-        Attacker a ->
-            case model.field of
-                Rect field ->
-                    case model.enemyList of
-                        [] ->
-                            div [] []
+    case model.field of
+        Rect field ->
+            case model.enemyList of
+                [] ->
+                    div [] []
 
-                        enemy :: xs ->
-                            div []
-                                [ table []
-                                    [ tr []
-                                        [ td []
-                                            [ div [ style "text-align" "center" ]
-                                                [ svg
-                                                    [ width (String.fromInt field.width)
-                                                    , height (String.fromInt field.height)
-                                                    , fill "#ccf"
-                                                    , viewBox ("0 0 " ++ String.fromInt field.width ++ String.fromInt field.height)
-                                                    ]
-													
-													[ drawObject1 4 model.enemy.xCoord model.enemy.yCoord a.width a.height
+                enemy :: xs ->
+                    div []
+                        [ table []
+                            [ tr []
+                                [ td []
+                                    [ div [ style "text-align" "center" ]
+                                        [ svg
+                                            [ width (String.fromInt field.width)
+                                            , height (String.fromInt field.height)
+                                            , fill "#ccf"
+                                            , viewBox ("0 0 " ++ String.fromInt field.width ++ String.fromInt field.height)
+                                            ]
+                                            (List.append (drawEnemies model.enemies) (drawBoard model.level.grid))
 
-													-- drawObject 4 a.origin a.width a.height
-													]
-
-													-- (drawObject 3 a.origin a.width a.height
-													--     :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
-													--     :: board oneFildTest Level.init
-													-- )
-                                                ]
-                                            ]
-                                        , td []
-                                            [ drawSelectionDetailBox model
-                                            ]
-                                        ]
-                                    , tr []
-                                        [ td []
-                                            [ drawSelectionBoard model
-                                            ]
+                                        -- drawObject1 4 model.enemy.xCoord model.enemy.yCoord model.enemy.width model.enemy.height
+                                        -- (drawObject 3 a.origin a.width a.height
+                                        --     :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
+                                        --     :: board oneFildTest Level.init
+                                        -- )
                                         ]
                                     ]
+                                , td []
+                                    [ drawSelectionDetailBox model
+                                    ]
                                 ]
+                            , tr []
+                                [ td [] [ drawSelectionBoard model ]
+                                ]
+                            ]
+                        ]
+
+
+drawEnemies : List { a | xCoord : Int, yCoord : Int, width : Int, height : Int } -> List (Svg (Maybe Msg))
+drawEnemies enemies =
+    case enemies of
+        [] ->
+            []
+
+        enmy :: xs ->
+            drawObject1 2 enmy.xCoord enmy.yCoord enmy.width enmy.height :: drawEnemies xs
 
 
 main : Program () Model (Maybe Msg)
@@ -316,49 +330,74 @@ main =
 subscriptions : Model -> Sub (Maybe Msg)
 subscriptions _ =
     Sub.batch
-        [ Time.every 1000 (\_ -> Just MoveAttacker)
+        [ Time.every 100 (\_ -> Just MoveAttacker)
         ]
 
 
-moveEnemy : Model -> ( Model, Cmd (Maybe Msg) )
-moveEnemy model =
-    case Level.init of
-        LevelGame levelInit ->
-            case LevelGame { grid = drop model.enemy.xCoord levelInit.grid } of
-                LevelGame levelUpdate ->
-                    case levelUpdate.grid of
-                        [] ->
-                            ( model, Cmd.none )
+moveEnemies : List (Object Enemy) -> List (Object Enemy)
+moveEnemies enemies =
+    let
+        moveEnemy enemy =
+            { enemy | yCoord = enemy.yCoord + 2 }
+    in
+    case enemies of
+        [] ->
+            []
 
-                        ( _, row ) :: _ ->
-                            let
-                                right =
-                                    maybeToElement (getAt (model.enemy.objectType.yGridPos + 1) row)
+        enemy :: xs ->
+            moveEnemy enemy :: moveEnemies xs
 
-                                left =
-                                    maybeToElement (getAt (model.enemy.objectType.yGridPos - 1) row)
 
-                                up =
-                                    maybeToElement (getAt model.enemy.objectType.yGridPos (second (maybeToElement2 (getAt (model.enemy.objectType.xGridPos - 1) levelInit.grid))))
+drawBoard : List ( Int, List ( Int, Int ) ) -> List (Svg (Maybe Msg))
+drawBoard grid =
+    let
+        drawBoardLine list ix =
+            case list of
+                [] ->
+                    []
 
-                                down =
-                                    maybeToElement (getAt model.enemy.objectType.yGridPos (second (maybeToElement2 (getAt (model.enemy.objectType.xGridPos + 1) levelInit.grid))))
-                            in ( { model | enemy = Assets.Object.init model.enemy.width model.enemy.height model.enemy.xCoord (model.enemy.yCoord + 20)  model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Down, xGridPos = model.enemy.objectType.xGridPos + 1, yGridPos = model.enemy.objectType.yGridPos }, level = LevelGame { grid = drop (model.enemy.objectType.xGridPos + 1) levelInit.grid } }, Cmd.none )
-                            
-                            -- if second right == 1 && (model.enemy.objectType.direction == Down || model.enemy.objectType.direction == Up || model.enemy.objectType.direction == Right) then
-                            --     ( { model | enemy = Assets.Object.init (model.enemy.xCoord + 20) model.enemy.yCoord model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Right, xGridPos = model.enemy.objectType.xGridPos, yGridPos = model.enemy.objectType.yGridPos + 1 }, level = LevelGame levelUpdate }, Cmd.none )
+                ( iy, y ) :: ys ->
+                    drawObject1 y (iy * fieldSize) (ix * fieldSize) fieldSize fieldSize :: drawBoardLine ys ix
+    in
+    case grid of
+        [] ->
+            []
 
-                            -- else if second left == 1 && (model.enemy.objectType.direction == Down || model.enemy.objectType.direction == Up || model.enemy.objectType.direction == Left) then
-                            --     ( { model | enemy = Assets.Object.init (model.enemy.xCoord - 20) model.enemy.yCoord model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Left, xGridPos = model.enemy.objectType.xGridPos, yGridPos = model.enemy.objectType.yGridPos - 1 }, level = LevelGame levelUpdate }, Cmd.none )
-
-                            -- else if second up == 1 && (model.enemy.objectType.direction == Up || model.enemy.objectType.direction == Right || model.enemy.objectType.direction == Left) then
-                            --     ( { model | enemy = Assets.Object.init model.enemy.xCoord (model.enemy.yCoord - 20) model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Up, xGridPos = model.enemy.objectType.xGridPos - 1, yGridPos = model.enemy.objectType.yGridPos }, level = LevelGame { grid = drop (model.enemy.objectType.xGridPos - 1) levelInit.grid } }, Cmd.none )
-
-                            -- else
-                            --     ( { model | enemy = Assets.Object.init model.enemy.xCoord (model.enemy.yCoord + 20) model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Down, xGridPos = model.enemy.objectType.xGridPos + 1, yGridPos = model.enemy.objectType.yGridPos }, level = LevelGame { grid = drop (model.enemy.objectType.xGridPos + 1) levelInit.grid } }, Cmd.none )
+        ( ix, x ) :: xs ->
+            List.append (drawBoard xs) (drawBoardLine x ix)
 
 
 
+--model.level
+-- moveEnemy : Model -> ( Model, Cmd (Maybe Msg) )
+-- moveEnemy model =
+--     case Level.init of
+--         LevelGame levelInit ->
+--             case LevelGame { grid = drop model.enemy.xCoord levelInit.grid } of
+--                 LevelGame levelUpdate ->
+--                     case levelUpdate.grid of
+--                         [] ->
+--                             ( model, Cmd.none )
+--                         ( _, row ) :: _ ->
+--                             let
+--                                 right =
+--                                     maybeToElement (getAt (model.enemy.objectType.yGridPos + 1) row)
+--                                 left =
+--                                     maybeToElement (getAt (model.enemy.objectType.yGridPos - 1) row)
+--                                 up =
+--                                     maybeToElement (getAt model.enemy.objectType.yGridPos (second (maybeToElement2 (getAt (model.enemy.objectType.xGridPos - 1) levelInit.grid))))
+--                                 down =
+--                                     maybeToElement (getAt model.enemy.objectType.yGridPos (second (maybeToElement2 (getAt (model.enemy.objectType.xGridPos + 1) levelInit.grid))))
+--                             in
+--                             ( { model | enemy = Assets.Object.init model.enemy.width model.enemy.height model.enemy.xCoord (model.enemy.yCoord + 20) model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Down, xGridPos = model.enemy.objectType.xGridPos + 1, yGridPos = model.enemy.objectType.yGridPos }, level = LevelGame { grid = drop (model.enemy.objectType.xGridPos + 1) levelInit.grid } }, Cmd.none )
+-- if second right == 1 && (model.enemy.objectType.direction == Down || model.enemy.objectType.direction == Up || model.enemy.objectType.direction == Right) then
+--     ( { model | enemy = Assets.Object.init (model.enemy.xCoord + 20) model.enemy.yCoord model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Right, xGridPos = model.enemy.objectType.xGridPos, yGridPos = model.enemy.objectType.yGridPos + 1 }, level = LevelGame levelUpdate }, Cmd.none )
+-- else if second left == 1 && (model.enemy.objectType.direction == Down || model.enemy.objectType.direction == Up || model.enemy.objectType.direction == Left) then
+--     ( { model | enemy = Assets.Object.init (model.enemy.xCoord - 20) model.enemy.yCoord model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Left, xGridPos = model.enemy.objectType.xGridPos, yGridPos = model.enemy.objectType.yGridPos - 1 }, level = LevelGame levelUpdate }, Cmd.none )
+-- else if second up == 1 && (model.enemy.objectType.direction == Up || model.enemy.objectType.direction == Right || model.enemy.objectType.direction == Left) then
+--     ( { model | enemy = Assets.Object.init model.enemy.xCoord (model.enemy.yCoord - 20) model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Up, xGridPos = model.enemy.objectType.xGridPos - 1, yGridPos = model.enemy.objectType.yGridPos }, level = LevelGame { grid = drop (model.enemy.objectType.xGridPos - 1) levelInit.grid } }, Cmd.none )
+-- else
+--     ( { model | enemy = Assets.Object.init model.enemy.xCoord (model.enemy.yCoord + 20) model.enemy.width model.enemy.height model.enemy.image { speed = model.enemy.objectType.speed, health = model.enemy.objectType.health, direction = Down, xGridPos = model.enemy.objectType.xGridPos + 1, yGridPos = model.enemy.objectType.yGridPos }, level = LevelGame { grid = drop (model.enemy.objectType.xGridPos + 1) levelInit.grid } }, Cmd.none )
 -- , xGridPos = model.enemy.objectType.xGridPos + 1
 --                                                     case model.enemy.objectType.direction of Right -> if ( second up == 1 ) then   ( { model | model.enemy.objectType.speed = 1 }, Cmd.none )
 --                                                                                                       else if ( second down == 1 ) then  ( { model | enemy = {yCoord= model.enemy.objectType.yCoord + 20 , xGridPos = model.enemy.objectType.xGridPos + 1 } , level = LevelGame { grid = drop  (model.enemy.objectType.xGridPos  + 1) levelInit.grid }  }, Cmd.none )
@@ -374,8 +413,6 @@ moveEnemy model =
 --                                                                                                      else   ( { model | enemy = {yCoord= model.enemy.objectType.yCoord - 20 , xGridPos = model.enemy.objectType.xGridPos -1 } , level = LevelGame { grid = drop  (model.enemy.objectType.xGridPos -1) levelInit.grid }  }, Cmd.none )
 -- {  yCoord = model.enemy.yCoord - 20 , xGridPos = model.enemy.objectType.xGridPos -1 }
 -- ( { model | enemy = { model.enemy |  speed = 10  }  , level = LevelGame { grid = drop  (model.enemy.objectType.xGridPos-1) levelInit.grid }  }, Cmd.none )
-
-
 -- testMove : Model -> ( Model, Cmd (Maybe Msg) )
 -- testMove model =
 --     case model.attacker of
@@ -391,27 +428,21 @@ moveEnemy model =
 --                                             case levelUpdate.grid of
 --                                                 [] ->
 --                                                     ( model, Cmd.none )
-
 --                                                 ( _, row ) :: _ ->
 --                                                     let
 --                                                         right =
 --                                                             maybeToElement (getAt (yActual + 1) row)
-
 --                                                         left =
 --                                                             maybeToElement (getAt (yActual - 1) row)
-
 --                                                         up =
 --                                                             maybeToElement (getAt yActual (second (maybeToElement2 (getAt (xActual - 1) levelInit.grid))))
 --                                                     in
 --                                                     if second right == 1 && first right /= yOld then
 --                                                         ( { model | attacker = Attacker { origin = moveAttackerPoint Right a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point xActual (yActual + 1), oldPosition = Point xActual yActual }, level = LevelGame levelUpdate }, Cmd.none )
-
 --                                                     else if second left == 1 && first left /= yOld then
 --                                                         ( { model | attacker = Attacker { origin = moveAttackerPoint Left a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point xActual (yActual - 1), oldPosition = Point xActual yActual }, level = LevelGame levelUpdate }, Cmd.none )
-
 --                                                     else if second up == 1 && first (maybeToElement2 (getAt (xActual - 1) levelInit.grid)) /= xOld then
 --                                                         ( { model | attacker = Attacker { origin = moveAttackerPoint Up a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point (xActual - 1) yActual, oldPosition = Point xActual yActual }, level = LevelGame { grid = drop xOld levelInit.grid } }, Cmd.none )
-
 --                                                     else
 --                                                         ( { model | attacker = Attacker { origin = moveAttackerPoint Down a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point (xActual + 1) yActual, oldPosition = Point xActual yActual }, level = LevelGame { grid = drop (xActual + 1) levelInit.grid } }, Cmd.none )
 

@@ -1,46 +1,25 @@
-module Assets.Type.Enemy exposing (Enemy, initWarrior,getEnemyHeight,getEnemyPos,getEnemyXCoord,getEnemyYCoord)
+module Assets.Type.Enemy exposing (Enemy, initWarrior)
 
 import Assets.Object
-import General exposing (Point(..), Direction(..))
-import Svg.Attributes exposing (direction)
+import General exposing (Direction(..), Point(..))
 
 
 type alias Enemy =
     { speed : Int
     , health : Int
-    , direction : Direction
-    , xGridPos : Int
-    , yGridPos : Int
+    , currentDirection : Direction
     }
 
 
-initWarrior : Assets.Object.Object Enemy
-initWarrior =
+initWarrior : Direction -> Assets.Object.Object Enemy
+initWarrior direction =
     Assets.Object.init
         20
         20
-        10
-        10
+        80
+        -30
         "Foo"
         { speed = 10
         , health = 50
-        , direction = Right
-        , xGridPos = 1
-        , yGridPos = 1
+        , currentDirection = direction
         }
-
-getEnemySpeed : Assets.Object.Object Enemy ->Int
-getEnemySpeed enemy =  enemy.objectType.speed
-
-getEnemyHeight : Assets.Object.Object Enemy ->Int
-getEnemyHeight enemy = enemy.height
-
-getEnemyXCoord : Assets.Object.Object Enemy ->Int
-getEnemyXCoord enemy = enemy.xCoord
-
-
-getEnemyYCoord : Assets.Object.Object Enemy ->Int
-getEnemyYCoord enemy = enemy.yCoord
-
-getEnemyPos : Assets.Object.Object Enemy -> Point
-getEnemyPos enemy = ( Point enemy.xCoord enemy.yCoord)
