@@ -7,13 +7,8 @@ import Assets.Type.Tower exposing (Tower)
 import Browser
 import Browser.Events exposing (onAnimationFrame)
 import Debug exposing (log)
-<<<<<<< HEAD
 import General exposing (Area(..), Direction(..), OneField(..), Point(..), oneFildTest)
-import Html exposing (Html, button, div, img, span, text)
-=======
-import General exposing (Area(..), OneField(..), Point(..), oneFildTest)
 import Html exposing (Html, button, div, img, span, table, td, text, tr)
->>>>>>> origin/hedo
 import Html.Attributes exposing (src, style)
 import Html.Events exposing (onClick)
 import Level exposing (Level(..), init)
@@ -21,14 +16,9 @@ import List exposing (drop, take)
 import List.Extra exposing (getAt)
 import Random
 import Svg exposing (Svg, rect, svg)
-<<<<<<< HEAD
 import Svg.Attributes exposing (direction, fill, height, opacity, speed, stroke, viewBox, width, x, y)
 import Time
 import Tuple exposing (first, second)
-=======
-import Svg.Attributes exposing (fill, height, opacity, speed, stroke, viewBox, width, x, y)
-import Svg.Events as SvgE
->>>>>>> origin/hedo
 
 
 type alias Model =
@@ -288,10 +278,16 @@ view model =
                                                     , fill "#ccf"
                                                     , viewBox ("0 0 " ++ String.fromInt field.width ++ String.fromInt field.height)
                                                     ]
-                                                    (drawObject 3 a.origin a.width a.height
-                                                        :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
-                                                        :: board oneFildTest Level.init
-                                                    )
+													
+													[ drawObject1 4 model.enemy.xCoord model.enemy.yCoord a.width a.height
+
+													-- drawObject 4 a.origin a.width a.height
+													]
+
+													-- (drawObject 3 a.origin a.width a.height
+													--     :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
+													--     :: board oneFildTest Level.init
+													-- )
                                                 ]
                                             ]
                                         , td []
@@ -303,18 +299,6 @@ view model =
                                             [ drawSelectionBoard model
                                             ]
                                         ]
-<<<<<<< HEAD
-                                        [ drawObject1 4 model.enemy.xCoord model.enemy.yCoord a.width a.height
-
-                                        -- drawObject 4 a.origin a.width a.height
-                                        ]
-
-                                    -- (drawObject 3 a.origin a.width a.height
-                                    --     :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
-                                    --     :: board oneFildTest Level.init
-                                    -- )
-=======
->>>>>>> origin/hedo
                                     ]
                                 ]
 
