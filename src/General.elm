@@ -7,6 +7,11 @@ type Point
 
 type OneField
     = RectField { origin : Point, width : Int, height : Int }
+type Direction
+    = Left
+    | Up
+    | Right
+    | Down
 oneFildTest : OneField
 oneFildTest =
     RectField { origin = Point 0 0, width = 60, height = 60 }
