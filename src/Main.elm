@@ -3,12 +3,17 @@ module Main exposing (main)
 import Assets.Object exposing (Object)
 import Assets.Type.Enemy exposing (Enemy, initWarrior)
 import Assets.Type.Projectile exposing (Projectile)
-import Assets.Type.Tower exposing (Tower, initBigTower)
+import Assets.Type.Tower exposing (Tower)
 import Browser
 import Browser.Events exposing (onAnimationFrame)
 import Debug exposing (log)
+<<<<<<< HEAD
 import General exposing (Area(..), Direction(..), OneField(..), Point(..), oneFildTest)
 import Html exposing (Html, button, div, img, span, text)
+=======
+import General exposing (Area(..), OneField(..), Point(..), oneFildTest)
+import Html exposing (Html, button, div, img, span, table, td, text, tr)
+>>>>>>> origin/hedo
 import Html.Attributes exposing (src, style)
 import Html.Events exposing (onClick)
 import Level exposing (Level(..), init)
@@ -16,9 +21,14 @@ import List exposing (drop, take)
 import List.Extra exposing (getAt)
 import Random
 import Svg exposing (Svg, rect, svg)
+<<<<<<< HEAD
 import Svg.Attributes exposing (direction, fill, height, opacity, speed, stroke, viewBox, width, x, y)
 import Time
 import Tuple exposing (first, second)
+=======
+import Svg.Attributes exposing (fill, height, opacity, speed, stroke, viewBox, width, x, y)
+import Svg.Events as SvgE
+>>>>>>> origin/hedo
 
 
 type alias Model =
@@ -27,6 +37,7 @@ type alias Model =
     , towerList : List (Object (Tower (Object Projectile)))
     , enemyList : List (Object Enemy)
     , selectedTower : Object (Tower (Object Projectile))
+    , selectedField : ( Int, Int )
     , attacker : Attacker
     , level : Level
     , enemy : Object Enemy
@@ -43,6 +54,7 @@ type Status
 type Msg
     = Pause
     | SelectItem (Object (Tower (Object Projectile)))
+    | SelectField Int Int Int
     | MoveAttacker
 
 
@@ -83,6 +95,7 @@ init =
     , towerList = initTowerList
     , enemyList = initEnemyList
     , selectedTower = Assets.Type.Tower.initBigTower
+    , selectedField = ( 0, 0 )
     , attacker = attacker
     , level = Level.init
     , enemy = initWarrior
@@ -114,12 +127,16 @@ drawObject number (Point xOrigin yOrigin) objectWidth objectheight =
                 else if x == 1 then
                     "green"
 
+                else if x == -1 then
+                    "pink"
+
                 else
                     "blue"
              )
                 number
             )
         , opacity "50%"
+        , SvgE.onClick (Just (SelectField number (xOrigin - objectWidth) (yOrigin - objectheight)))
         ]
         []
 
@@ -154,6 +171,17 @@ toKey string =
     Nothing
 
 
+setSelectedField : Model -> Int -> Int -> Int -> Model
+setSelectedField model typ x y =
+    case typ of
+        0 ->
+            Debug.log ("Selected field typ " ++ String.fromInt typ ++ " is: " ++ String.fromInt x ++ "x " ++ String.fromInt y ++ "y")
+                { model | selectedField = ( x, y ) }
+
+        _ ->
+            model
+
+
 update : Maybe Msg -> Model -> ( Model, Cmd (Maybe Msg) )
 update msg model =
     case model.status of
@@ -163,11 +191,10 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just (SelectItem tower) ->
-                    let
-                        _ =
-                            Debug.log "foo" tower.objectType.range
-                    in
                     ( { model | selectedTower = tower }, Cmd.none )
+
+                Just (SelectField typ x y) ->
+                    ( setSelectedField model typ x y, Cmd.none )
 
                 Just MoveAttacker ->
                     case Level.init of
@@ -195,28 +222,48 @@ previewTowerList : List (Object (Tower (Object Projectile))) -> List (Html (Mayb
 previewTowerList list =
     case list of
         [] ->
-            [ span [] [ text ">" ] ]
+            [ td [] [ text ">" ] ]
 
         tower :: xs ->
-            span [] [ previewTowerListItem tower ]
+            previewTowerListItemImage tower
+                :: previewTowerListItemDetails tower
                 :: previewTowerList xs
 
 
-previewTowerListItem : Object (Tower (Object Projectile)) -> Html (Maybe Msg)
-previewTowerListItem tower =
-    span []
-        [ span [] [ img [ src ("img/" ++ tower.image), Html.Attributes.width 40, Html.Attributes.height 40 ] [] ]
-        , span [] [ text ("Name: " ++ tower.objectType.name) ]
-        , span [] [ text ("Price: " ++ String.fromInt tower.objectType.price) ]
-        , span [] [ text ("FireRate: " ++ String.fromInt tower.objectType.fireRate) ]
-        , span [] [ text ("Range: " ++ String.fromInt tower.objectType.range) ]
-        , button [ onClick (Just (SelectItem tower)) ] [ text "Select" ]
+previewTowerListItemImage : Object (Tower (Object Projectile)) -> Html (Maybe Msg)
+previewTowerListItemImage tower =
+    td [] [ span [] [ img [ src ("img/" ++ tower.image), Html.Attributes.width 40, Html.Attributes.height 40 ] [] ] ]
+
+
+previewTowerListItemDetails : Object (Tower (Object Projectile)) -> Html (Maybe Msg)
+previewTowerListItemDetails tower =
+    td
+        []
+        [ table []
+            [ tr [] [ td [] [ span [] [ text ("Name: " ++ tower.objectType.name) ] ] ]
+            , tr [] [ td [] [ span [] [ text ("Price: " ++ String.fromInt tower.objectType.price) ] ] ]
+            , tr [] [ td [] [ span [] [ text ("FireRate: " ++ String.fromInt tower.objectType.fireRate) ] ] ]
+            , tr [] [ td [] [ span [] [ text ("Range: " ++ String.fromInt tower.objectType.range) ] ] ]
+            , tr [] [ td [] [ button [ onClick (Just (SelectItem tower)) ] [ text "Add" ] ] ]
+            ]
         ]
 
 
 drawSelectionBoard : Model -> Html (Maybe Msg)
 drawSelectionBoard model =
-    div [] (span [] [ text "<" ] :: previewTowerList model.towerList)
+    table []
+        [ tr [] (td [] [ text "<" ] :: previewTowerList model.towerList)
+        ]
+
+
+drawSelectionDetailBox : Model -> Html (Maybe Msg)
+drawSelectionDetailBox model =
+    table [ style "background-color" "blue" ]
+        [ tr [] [ td [] [ img [ src ("img/" ++ model.selectedTower.image), Html.Attributes.width 40, Html.Attributes.height 40 ] [] ] ]
+        , tr [] [ td [] [ text ("Name: " ++ model.selectedTower.objectType.name) ] ]
+        , tr [] [ td [] [ text ("Level: " ++ String.fromInt model.selectedTower.objectType.level) ] ]
+        , tr [] [ td [] [ button [] [ text ("Level Up for: " ++ String.fromInt (model.selectedTower.objectType.price * model.selectedTower.objectType.level) ++ "$") ] ] ]
+        ]
 
 
 view : Model -> Html (Maybe Msg)
@@ -231,13 +278,32 @@ view model =
 
                         enemy :: xs ->
                             div []
-                                [ div [ style "text-align" "center" ]
-                                    [ svg
-                                        [ width (String.fromInt field.width)
-                                        , height (String.fromInt field.height)
-                                        , fill "#ccf"
-                                        , viewBox ("0 0 " ++ String.fromInt field.width ++ String.fromInt field.height)
+                                [ table []
+                                    [ tr []
+                                        [ td []
+                                            [ div [ style "text-align" "center" ]
+                                                [ svg
+                                                    [ width (String.fromInt field.width)
+                                                    , height (String.fromInt field.height)
+                                                    , fill "#ccf"
+                                                    , viewBox ("0 0 " ++ String.fromInt field.width ++ String.fromInt field.height)
+                                                    ]
+                                                    (drawObject 3 a.origin a.width a.height
+                                                        :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
+                                                        :: board oneFildTest Level.init
+                                                    )
+                                                ]
+                                            ]
+                                        , td []
+                                            [ drawSelectionDetailBox model
+                                            ]
                                         ]
+                                    , tr []
+                                        [ td []
+                                            [ drawSelectionBoard model
+                                            ]
+                                        ]
+<<<<<<< HEAD
                                         [ drawObject1 4 model.enemy.xCoord model.enemy.yCoord a.width a.height
 
                                         -- drawObject 4 a.origin a.width a.height
@@ -247,8 +313,9 @@ view model =
                                     --     :: drawObject 4 (Point enemy.xCoord enemy.yCoord) enemy.width enemy.height
                                     --     :: board oneFildTest Level.init
                                     -- )
+=======
+>>>>>>> origin/hedo
                                     ]
-                                , drawSelectionBoard model
                                 ]
 
 
