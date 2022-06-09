@@ -1,8 +1,12 @@
-module Assets.Type.Enemy exposing (Enemy, initWarrior)
+module Assets.Type.Enemy exposing (Enemy, initWarrior, changeEnemyDirection, determinePositionX,determinePositionY )
 
 import Assets.Object
 import General exposing (Direction(..), Point(..))
-
+import Svg.Attributes exposing (direction)
+import Assets.Object exposing (Object)
+fieldSize : Int
+fieldSize =
+    60
 
 type alias Enemy =
     { speed : Int
@@ -17,9 +21,20 @@ initWarrior direction =
         20
         20
         80
-        -30
+        1
         "Foo"
         { speed = 10
         , health = 50
         , currentDirection = direction
         }
+changeEnemyDirection : Enemy -> Direction -> Enemy 
+changeEnemyDirection enemy direction = {enemy | currentDirection = direction}
+
+determinePositionX : Object Enemy  -> Int
+determinePositionX enemy  =
+     floor (( toFloat enemy.xCoord / toFloat fieldSize))
+
+determinePositionY : Object Enemy  -> Int
+determinePositionY enemy  =
+  floor (( toFloat enemy.yCoord / toFloat fieldSize)) 
+
