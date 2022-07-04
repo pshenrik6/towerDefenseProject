@@ -1,7 +1,12 @@
-module Level exposing (Level, init)
+module Level exposing (Level, init )
+import Assets.Type.Enemy exposing (Enemy, initWarrior)
+import Assets.Type.Projectile exposing (Projectile)
 
 import General exposing (Point(..))
 import List exposing (indexedMap)
+import Assets.Object exposing (Object)
+import String exposing (toInt)
+
 
 
 type Levels
@@ -43,6 +48,11 @@ listToIndexedMap level =
 
         x :: xs ->
             indexedMap Tuple.pair x :: listToIndexedMap xs
+
+
+-- getPositionInGrid : Int -> Int -> List ( Int, List ( Int, Int ) ) -> Int
+-- getPositionInGrid x y grid =
+--     grid [ y ] [ x ]
 
 
 

@@ -1,5 +1,4 @@
-module Main exposing (main)
-
+module Main exposing (fieldSize, main)
 import Assets.Object exposing (Object)
 import Assets.Type.Enemy exposing (Enemy, initWarrior)
 import Assets.Type.Projectile exposing (Projectile)
@@ -196,21 +195,15 @@ update msg model =
                         levelUpdateInit ->
                             let
                                 _ =
-                                    Debug.log "get at" (maybeToElement2 (getAt 0 levelUpdateInit.grid))
-
-                                _ =
                                     case model.enemies of
                                         [] ->
-                                            0
+                                            (0,0)
 
-                                        enmy :: _ ->
-                                            Debug.log "enemy" enmy.xCoord
-
-                                --  _ =
-                                --      Debug.log "pathsList" (test Level.init (Point 0 1 ) (Point 0 0 ))
+                                        enemy :: _ ->
+                                            Debug.log "enemy" (enemy.xCoord,enemy.yCoord)
                             in
                             --testMove model
-                            ( { model | enemies = moveEnemies model.enemies }, Cmd.none )
+                            ( { model | enemies = Assets.Type.Enemy.moveEnemies model.enemies Level.init.grid }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -330,22 +323,12 @@ main =
 subscriptions : Model -> Sub (Maybe Msg)
 subscriptions _ =
     Sub.batch
-        [ Time.every 100 (\_ -> Just MoveAttacker)
+        [ Time.every 1000 (\_ -> Just MoveAttacker)
         ]
 
 
-moveEnemies : List (Object Enemy) -> List (Object Enemy)
-moveEnemies enemies =
-    let
-        moveEnemy enemy =
-            { enemy | yCoord = enemy.yCoord + 2 }
-    in
-    case enemies of
-        [] ->
-            []
 
-        enemy :: xs ->
-            moveEnemy enemy :: moveEnemies xs
+
 
 
 drawBoard : List ( Int, List ( Int, Int ) ) -> List (Svg (Maybe Msg))
@@ -365,6 +348,67 @@ drawBoard grid =
 
         ( ix, x ) :: xs ->
             List.append (drawBoard xs) (drawBoardLine x ix)
+
+
+
+
+
+
+
+-- moveEnemies : List (Object Enemy) -> List (Object Enemy)
+-- moveEnemies enemies =
+--     let
+--         moveEnemy enemy =
+--             { enemy | yCoord = enemy.yCoord + 2 }
+--     in
+--     case enemies of
+--         [] ->
+--             []
+--         enemy :: xs ->
+--             moveEnemy enemy :: moveEnemies xs
+
+
+-- moveEnemies : List ( Int, List ( Int, Int ) ) -> List (Object Enemy) -> List (Object Enemy)
+-- moveEnemies grid enemies =
+--     let
+--         moveEnemy enemy list =
+--             case drop enemy.yCoord Level.init.grid of
+--                 [] ->
+--                     enemy
+
+--                 ( _, row ) :: xs ->
+--                     let
+--                         right =
+--                             maybeToElement (getAt ((Assets.Type.Enemy.determinePositionX enemy) + 1) row)
+
+--                         left =
+--                             maybeToElement (getAt (Assets.Type.Enemy.determinePositionX enemy - 1) row)
+
+--                         up =
+--                             maybeToElement (getAt (Assets.Type.Enemy.determinePositionX enemy) (second (maybeToElement2 (getAt (Assets.Type.Enemy.determinePositionY enemy - 1) Level.init.grid))))
+
+--                         down =
+--                             maybeToElement (getAt (Assets.Type.Enemy.determinePositionY enemy) (second (maybeToElement2 (getAt (Assets.Type.Enemy.determinePositionY enemy + 1) grid))))
+--                     in
+--                     if second right == 1 && enemy.objectType.currentDirection /= Left then
+--                         moveEnemy { enemy | xCoord = enemy.xCoord + 1, objectType = Assets.Type.Enemy.changeEnemyDirection enemy.objectType Right } list
+
+--                     else if second left == 1 && enemy.objectType.currentDirection /= Right then
+--                         moveEnemy { enemy | xCoord = enemy.xCoord - 1, objectType = Assets.Type.Enemy.changeEnemyDirection enemy.objectType Left } list
+
+--                     else if second up == 1 && enemy.objectType.currentDirection /= Down then
+--                         moveEnemy { enemy | yCoord = enemy.yCoord - 1, objectType = Assets.Type.Enemy.changeEnemyDirection enemy.objectType Up } (drop (Assets.Type.Enemy.determinePositionY enemy - 1) Level.init.grid)
+
+--                     else
+--                         moveEnemy { enemy | yCoord = enemy.yCoord + 1 } xs
+--     in
+--     case enemies of
+--         [] ->
+--             []
+
+--         enemy :: xs ->
+--             moveEnemy enemy grid :: moveEnemies grid xs
+
 
 
 
@@ -445,29 +489,6 @@ drawBoard grid =
 --                                                         ( { model | attacker = Attacker { origin = moveAttackerPoint Up a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point (xActual - 1) yActual, oldPosition = Point xActual yActual }, level = LevelGame { grid = drop xOld levelInit.grid } }, Cmd.none )
 --                                                     else
 --                                                         ( { model | attacker = Attacker { origin = moveAttackerPoint Down a.origin, width = a.width, height = a.height, speed = a.speed, name = a.name, actuelPosition = Point (xActual + 1) yActual, oldPosition = Point xActual yActual }, level = LevelGame { grid = drop (xActual + 1) levelInit.grid } }, Cmd.none )
-
-
-maybeToElement : Maybe ( Int, Int ) -> ( Int, Int )
-maybeToElement m =
-    case m of
-        Just a ->
-            a
-
-        Nothing ->
-            ( 0, 0 )
-
-
-maybeToElement2 : Maybe ( Int, List ( Int, Int ) ) -> ( Int, List ( Int, Int ) )
-maybeToElement2 m =
-    case m of
-        Just a ->
-            a
-
-        Nothing ->
-            ( 0, [] )
-
-
-
 -- Point 0 1
 --  LevelGame
 --         { grid =
